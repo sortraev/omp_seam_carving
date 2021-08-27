@@ -1,20 +1,19 @@
 main=src/main
 
-srcs=src/seam_carving.cpp src/Grid.cpp src/Pixel.cpp src/Image.cpp
+srcs=src/seam_carving.c src/grid.c src/pixel.c src/image.c
 
 
-test_img_dir=./images
-img2bin=tools/img_to_binary.py
-bin2img=tools/binary_to_img.py
+img2bin=../tools/img_to_binary.py
+bin2img=../tools/binary_to_img.py
 
 num_seams=1
 
-.PHONY: %-out.png
+.PHONY: $(main)
 
 compile: $(main)
 
-$(main): src/main.cpp $(srcs)
-	g++ -fopenmp -O3 -o $@ $< -Werror -Wall -pedantic
+$(main): src/main.c $(srcs)
+	g++ -fopenmp -Wall -pedantic -O3 -o $@ $<
 
 %-in.dat: %.png $(img2bin)
 	$(img2bin) $< $@
@@ -30,3 +29,4 @@ clean:
 	rm -rf a.out $(main) $(testprog)
 	rm -rf vgcore*
 	rm -rf $(test_img_dir)/*-in.dat $(test_img_dir)/*-out.*
+	rm -rf *-out.png

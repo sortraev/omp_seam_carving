@@ -1,36 +1,39 @@
 #include <omp.h>
 
-#include "Grid.cpp"
-#include "Pixel.cpp"
-#include "Image.cpp"
+#include "grid.c"
+#include "pixel.c"
+#include "image.c"
 
 #define ENERGY_MAX INT32_MAX
-#define NUM_THREADS 8
 
-typedef Grid<Energy> EnergyMap;
+#define NUM_THREADS    8
+
+typedef grid_t image;
+typedef grid_t energymap;
 
 static inline int mod(int a, int b) {
   return (a + b) % b;
 }
-static inline Energy e_min(Energy a, Energy b) {
+static inline energy e_min(energy a, energy b) {
   return a < b ? a : b;
 }
-static inline Energy e_min3(Energy a, Energy b, Energy c) {
+static inline energy e_min3(energy a, energy b, energy c) {
   return e_min(e_min(a, b), c);
 }
 
-EnergyMap compute_energies(Image &img) {
 
-  int h = img.getHeight();
-  int w = img.getWidth();
-  Pixel *pixels = img.getCells();
+grid_t *compute_energies(grid_t *img_in) {
 
-  EnergyMap emap(h, w);
-  Energy *energies = emap.getCells();
+  int h = img_in->h;
+  int w = img_in->w;
+  pixel *pixels = img_in->cells;
+
+  energymap *emap     = new_grid(h, w);
+  energy    *energies = emap->cells;
 
   for (int i = 0; i < h; i++) {
     for (int j = 0; j < w; j++) {
-      Pixel c  = pixels[i * w + j],
+      pixel c  = pixels[i * w + j],
             ul = pixels[mod(i - 1, h)*w + mod(j - 1, w)],
             u  = pixels[mod(i - 1, h)*w + j],
             ur = pixels[mod(i - 1, h)*w + mod(j + 1, w)],
@@ -40,30 +43,30 @@ EnergyMap compute_energies(Image &img) {
             d  = pixels[mod(i + 1, h)*w + j],
             dr = pixels[mod(i + 1, h)*w + mod(j + 1, w)];
 
-      energies[i * w + j] =
-        Pixel::dist(c, ul) + Pixel::dist(c,  u) +
-        Pixel::dist(c, ur) + Pixel::dist(c,  l) +
-        Pixel::dist(c,  r) + Pixel::dist(c, dl) +
-        Pixel::dist(c,  d) + Pixel::dist(c, dr);
+      energies[i * w + j] = pdist(c, ul) + pdist(c,  u) +
+                            pdist(c, ur) + pdist(c,  l) +
+                            pdist(c,  r) + pdist(c, dl) +
+                            pdist(c,  d) + pdist(c, dr);
     }
   }
   return emap;
 }
 
-EnergyMap compute_energies_omp_unroll_inner(Image &img) {
 
-  int h = img.getHeight();
-  int w = img.getWidth();
-  Pixel *pixels = img.getCells();
+grid_t *compute_energies_omp_unroll_inner(grid_t *img_in) {
 
-  EnergyMap emap(h, w);
-  Energy *energies = emap.getCells();
+  int h = img_in->h;
+  int w = img_in->w;
+  pixel *pixels = img_in->cells;
+
+  energymap *emap     = new_grid(h, w);
+  energy    *energies = emap->cells;
 
   #pragma omp parallel num_threads(NUM_THREADS)
   {
     #pragma omp for
     for (int i = 0; i < h; i++) {
-      Pixel c  = pixels[i * w],
+      pixel c  = pixels[i * w],
             ul = pixels[mod(i - 1, h)*w + w - 1],
             u  = pixels[mod(i - 1, h)*w],
             ur = pixels[mod(i - 1, h)*w + 1],
@@ -74,10 +77,10 @@ EnergyMap compute_energies_omp_unroll_inner(Image &img) {
             dr = pixels[mod(i + 1, h)*w + 1];
 
       energies[i * w] =
-        Pixel::dist(c, ul) + Pixel::dist(c,  u) +
-        Pixel::dist(c, ur) + Pixel::dist(c,  l) +
-        Pixel::dist(c,  r) + Pixel::dist(c, dl) +
-        Pixel::dist(c,  d) + Pixel::dist(c, dr);
+        pdist(c, ul) + pdist(c,  u) +
+        pdist(c, ur) + pdist(c,  l) +
+        pdist(c,  r) + pdist(c, dl) +
+        pdist(c,  d) + pdist(c, dr);
 
       for (int j = 1; j < w - 1; j++) {
         c  = pixels[i * w + j];
@@ -91,10 +94,10 @@ EnergyMap compute_energies_omp_unroll_inner(Image &img) {
         dr = pixels[mod(i + 1, h)*w + j + 1];
 
         energies[i * w + j] =
-          Pixel::dist(c, ul) + Pixel::dist(c,  u) +
-          Pixel::dist(c, ur) + Pixel::dist(c,  l) +
-          Pixel::dist(c,  r) + Pixel::dist(c, dl) +
-          Pixel::dist(c,  d) + Pixel::dist(c, dr);
+          pdist(c, ul) + pdist(c,  u) +
+          pdist(c, ur) + pdist(c,  l) +
+          pdist(c,  r) + pdist(c, dl) +
+          pdist(c,  d) + pdist(c, dr);
       }
       c  = pixels[i * w + w - 1];
       ul = pixels[mod(i - 1, h)*w + w - 2];
@@ -107,27 +110,26 @@ EnergyMap compute_energies_omp_unroll_inner(Image &img) {
       dr = pixels[mod(i + 1, h)*w];
 
       energies[i * w + w - 1] =
-        Pixel::dist(c, ul) + Pixel::dist(c,  u) +
-        Pixel::dist(c, ur) + Pixel::dist(c,  l) +
-        Pixel::dist(c,  r) + Pixel::dist(c, dl) +
-        Pixel::dist(c,  d) + Pixel::dist(c, dr);
+        pdist(c, ul) + pdist(c,  u) +
+        pdist(c, ur) + pdist(c,  l) +
+        pdist(c,  r) + pdist(c, dl) +
+        pdist(c,  d) + pdist(c, dr);
 
     }
   }
   return emap;
 }
 
-
-Energy *compute_local_minseams(EnergyMap &emap) {
+energy *compute_local_minseams(grid_t *emap) {
   /* compute the map of locally minimal seams using bottom-up DP:
    * M[i, j] = E[i, j] + min(M[i-1, j-1], M[i-1, j], M[i-1, j+1]),
    * where E and M are the energy map and local min seams, respectively. this is
    * done in-place since the original energy map is not needed afterwards. 
    */
 
-  int h = emap.getHeight();
-  int w = emap.getWidth();
-  Energy *energies = emap.getCells();
+  int h = emap->h;
+  int w = emap->w;
+  energy *energies = emap->cells;
 
   for (int i = 0; i < h - 1; i++) {
     int prev_row = i * w;
@@ -137,8 +139,9 @@ Energy *compute_local_minseams(EnergyMap &emap) {
       e_min(energies[prev_row], energies[prev_row + 1]);
 
 
-      // TODO: why does this not benefit from parallelization?
-      // #pragma omp parallel for num_threads(8)
+      // TODO: why does this not benefit from parallelization? again, probably
+      //       because of oversaturation.
+      // #pragma omp parallel for num_threads(NUM_THREADS)
       for (int j = 1; j < w - 1; j++) {
         energies[this_row + j] +=
           e_min3(energies[prev_row + j - 1],
@@ -154,7 +157,11 @@ Energy *compute_local_minseams(EnergyMap &emap) {
 
 
 
-int *compute_global_minseam(EnergyMap &emap) {
+
+
+
+
+int *compute_global_minseam(grid_t *emap) {
 
   /* 
    * given an emap of local minseams, we want to find the *globally* minimal
@@ -169,23 +176,23 @@ int *compute_global_minseam(EnergyMap &emap) {
    *
    */
 
-  int h = emap.getHeight();
-  int w = emap.getWidth();
+  int h = emap->h;
+  int w = emap->w;
 
-  Energy *lseams = compute_local_minseams(emap);
+  energy *lseams = compute_local_minseams(emap);
 
-  Energy *last_row = lseams + (h - 1) * w;
-  Energy min       = ENERGY_MAX;
+  energy *last_row = lseams + (h - 1) * w;
+  energy min       = ENERGY_MAX;
   int    argmin    = 0;
 
   // compute bottom-row endpoint of global minseam (the argmin mentioned above).
 #define PAR_ARGMIN_IMAGE_WIDTH_THRESHOLD 2048
   if (w >= PAR_ARGMIN_IMAGE_WIDTH_THRESHOLD) {
-    static Energy mins[NUM_THREADS];
+    static energy mins[NUM_THREADS];
     static int    argmins[NUM_THREADS];
     #pragma omp parallel num_threads(NUM_THREADS)
     {
-      Energy my_min = min;
+      energy my_min = min;
       int my_argmin = argmin;
 
       #pragma omp for
@@ -210,7 +217,7 @@ int *compute_global_minseam(EnergyMap &emap) {
         min = last_row[argmin = i];
 
   // now, backtrack up the map of computed local minseams as explained above.
-  int *gseam_is = new int[h];
+  int *gseam_is = (int*) malloc(h * sizeof(int));
 
   int prev = gseam_is[h - 1] = argmin;
 
@@ -227,27 +234,26 @@ int *compute_global_minseam(EnergyMap &emap) {
   return gseam_is;
 }
 
+grid_t *carve_one_seam(grid_t *img_in) {
 
-Image carve_one_seam(Image &img_in) {
+  grid_t *emap  = compute_energies_omp_unroll_inner(img_in);
+  int *gseam_is = compute_global_minseam(emap);
+  free_grid(emap);
 
-  // EnergyMap emap = compute_energies_omp_unroll_inner(img_in);
-  EnergyMap emap = compute_energies(img_in);
-  int *gseam_is  = compute_global_minseam(emap);
-
-  int h = img_in.getHeight();
-  int w = img_in.getWidth();
+  int h = img_in->h;
+  int w = img_in->w;
   int new_w = w - 1;
 
-  Image img_out(h, new_w);
+  grid_t *img_out = new_grid(h, new_w);
 
-  Pixel *p_in  = img_in.getCells();
-  Pixel *p_out = img_out.getCells();
+  pixel *p_in  = img_in->cells;
+  pixel *p_out = img_out->cells;
 
   /* 
    * carve out the global minseam by concatenating the arrays 
    * p_in[i, :gseam_is[i]] and p_in[i, gseam_is[i]+1:] for each i. 
    *
-   * TODO: why does this not benefit from omp? probably because of oversaturation.
+   * TODO: why does this not benefit from omp? probably due to oversaturation
    */
   for (int i = 0; i < h; i++) {
     int split = gseam_is[i];
@@ -258,19 +264,27 @@ Image carve_one_seam(Image &img_in) {
       p_out[i * new_w + j - 1] = p_in[i * w + j];
   }
 
-  delete[] gseam_is;
+  free(gseam_is);
+  free_grid(img_in);
 
   return img_out;
 }
 
+grid_t *carve_n_seams(grid_t *img, int n) {
 
-Image carve_n_seams(Image &img, int n) {
-  if (n < 0 || n > img.getWidth())
-    throw std::invalid_argument("Invalid number of seams to remove "
-                                "(expected 0 <= n < image width).");
-  Image out = img;
+  if (n < 0 || n > img->w) {
+    fprintf(stderr, "Invalid number of seams to remove "
+                    "(expected 0 <= n < image width).");
+    exit(1);
+  }
+
   for (int i = 0; i < n; i++)
-    out = carve_one_seam(out);
-  return out;
+    img = carve_one_seam(img);
+  return img;
 }
+
+
+
+
+
 
