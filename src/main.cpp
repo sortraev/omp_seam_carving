@@ -20,7 +20,6 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-
   Image img1 = Image::from_file(in_filename);
   Image img2 = carve_n_seams(img1, num_seams);
   img2.to_file(out_filename);

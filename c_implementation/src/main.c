@@ -21,12 +21,22 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  image *img = from_file(in_filename);
+  image *img;
 
-  img = carve_n_seams(img, num_seams);
-  to_file(img, out_filename);
-  free_grid(img);
+  if ((img = img_from_file(in_filename)) == NULL) {
+    fprintf(stderr, "Failed to open input file.\n");
+    exit(1);
+  }
 
+  if ((img = carve_n_seams(img, num_seams)) == NULL) {
+    fprintf(stderr, "Seam carving failed.\n");
+    exit(1);
+  }
+
+  if (img_to_file(img, out_filename) != 0) {
+    fprintf(stderr, "Failed to store carved image to file.\n");
+    exit(1);
+  }
 
   return 0;
 }

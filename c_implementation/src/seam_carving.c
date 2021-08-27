@@ -1,3 +1,4 @@
+#pragma once
 #include <omp.h>
 
 #include "grid.c"
@@ -5,10 +6,8 @@
 #include "image.c"
 
 #define ENERGY_MAX INT32_MAX
-
 #define NUM_THREADS    8
 
-typedef grid_t image;
 typedef grid_t energymap;
 
 static inline int mod(int a, int b) {
@@ -22,14 +21,14 @@ static inline energy e_min3(energy a, energy b, energy c) {
 }
 
 
-grid_t *compute_energies_omp_unroll_inner(grid_t *img_in) {
+energymap *compute_energies_omp_unroll_inner(image *img_in) {
 
-  int h = img_in->h;
-  int w = img_in->w;
-  pixel *pixels = img_in->cells;
+  int h         = img_in->h;
+  int w         = img_in->w;
+  pixel *pixels = (pixel*) img_in->cells;
 
   energymap *emap     = new_grid(h, w);
-  energy    *energies = emap->cells;
+  energy    *energies = (energy*) emap->cells;
 
   #pragma omp parallel num_threads(NUM_THREADS)
   {
@@ -89,11 +88,14 @@ grid_t *compute_energies_omp_unroll_inner(grid_t *img_in) {
   return emap;
 }
 
-energy *compute_local_minseams(grid_t *emap) {
-  /* compute the map of locally minimal seams using bottom-up DP:
+energy *compute_local_minseams(energymap *emap) {
+
+  /* 
+   * compute the map of locally minimal seams using bottom-up DP:
    * M[i, j] = E[i, j] + min(M[i-1, j-1], M[i-1, j], M[i-1, j+1]),
    * where E and M are the energy map and local min seams, respectively. this is
    * done in-place since the original energy map is not needed afterwards. 
+   *
    */
 
   int h = emap->h;
@@ -107,10 +109,8 @@ energy *compute_local_minseams(grid_t *emap) {
     energies[this_row] +=
       e_min(energies[prev_row], energies[prev_row + 1]);
 
-
-      // TODO: why does this not benefit from parallelization? again, probably
-      //       because of oversaturation.
-      // #pragma omp parallel for num_threads(NUM_THREADS)
+      // this is parallelizable but it is not beneficial, most likely due to
+      // oversaturation.
       for (int j = 1; j < w - 1; j++) {
         energies[this_row + j] +=
           e_min3(energies[prev_row + j - 1],
@@ -130,7 +130,7 @@ energy *compute_local_minseams(grid_t *emap) {
 
 
 
-int *compute_global_minseam(grid_t *emap) {
+int *compute_global_minseam(energymap *emap) {
 
   /* 
    * given an emap of local minseams, we want to find the *globally* minimal
@@ -204,9 +204,9 @@ int *compute_global_minseam(grid_t *emap) {
   return gseam_is;
 }
 
-grid_t *carve_one_seam(grid_t *img_in) {
+image *carve_one_seam(image *img_in) {
 
-  grid_t *emap  = compute_energies_omp_unroll_inner(img_in);
+  image *emap  = compute_energies_omp_unroll_inner(img_in);
   int *gseam_is = compute_global_minseam(emap);
   free_grid(emap);
 
@@ -214,16 +214,18 @@ grid_t *carve_one_seam(grid_t *img_in) {
   int w = img_in->w;
   int new_w = w - 1;
 
-  grid_t *img_out = new_grid(h, new_w);
+  image *img_out = new_grid(h, new_w);
 
-  pixel *p_in  = img_in->cells;
-  pixel *p_out = img_out->cells;
+  pixel *p_in  = (pixel*) img_in->cells;
+  pixel *p_out = (pixel*) img_out->cells;
 
   /* 
    * carve out the global minseam by concatenating the arrays 
    * p_in[i, :gseam_is[i]] and p_in[i, gseam_is[i]+1:] for each i. 
    *
-   * TODO: why does this not benefit from omp? probably due to oversaturation
+   * this loop is parallelizable in either dimension but it is not beneficial,
+   * again probably due to oversaturation.
+   *
    */
   for (int i = 0; i < h; i++) {
     int split = gseam_is[i];
@@ -240,12 +242,12 @@ grid_t *carve_one_seam(grid_t *img_in) {
   return img_out;
 }
 
-grid_t *carve_n_seams(grid_t *img, int n) {
+image *carve_n_seams(image *img, int n) {
 
   if (n < 0 || n > img->w) {
     fprintf(stderr, "Invalid number of seams to remove "
                     "(expected 0 <= n < image width).");
-    exit(1);
+    return NULL;
   }
 
   for (int i = 0; i < n; i++)

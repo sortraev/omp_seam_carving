@@ -137,8 +137,8 @@ Energy *compute_local_minseams(EnergyMap &emap) {
       e_min(energies[prev_row], energies[prev_row + 1]);
 
 
-      // TODO: why does this not benefit from parallelization?
-      // #pragma omp parallel for num_threads(8)
+      // this is parallelizable but it is not beneficial, most likely due to
+      // oversaturation.
       for (int j = 1; j < w - 1; j++) {
         energies[this_row + j] +=
           e_min3(energies[prev_row + j - 1],
@@ -230,8 +230,7 @@ int *compute_global_minseam(EnergyMap &emap) {
 
 Image carve_one_seam(Image &img_in) {
 
-  // EnergyMap emap = compute_energies_omp_unroll_inner(img_in);
-  EnergyMap emap = compute_energies(img_in);
+  EnergyMap emap = compute_energies_omp_unroll_inner(img_in);
   int *gseam_is  = compute_global_minseam(emap);
 
   int h = img_in.getHeight();
@@ -247,7 +246,9 @@ Image carve_one_seam(Image &img_in) {
    * carve out the global minseam by concatenating the arrays 
    * p_in[i, :gseam_is[i]] and p_in[i, gseam_is[i]+1:] for each i. 
    *
-   * TODO: why does this not benefit from omp? probably because of oversaturation.
+   * this loop is parallelizable in either dimension but it is not beneficial,
+   * again probably due to oversaturation.
+   *
    */
   for (int i = 0; i < h; i++) {
     int split = gseam_is[i];
