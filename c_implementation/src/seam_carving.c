@@ -22,37 +22,6 @@ static inline energy e_min3(energy a, energy b, energy c) {
 }
 
 
-grid_t *compute_energies(grid_t *img_in) {
-
-  int h = img_in->h;
-  int w = img_in->w;
-  pixel *pixels = img_in->cells;
-
-  energymap *emap     = new_grid(h, w);
-  energy    *energies = emap->cells;
-
-  for (int i = 0; i < h; i++) {
-    for (int j = 0; j < w; j++) {
-      pixel c  = pixels[i * w + j],
-            ul = pixels[mod(i - 1, h)*w + mod(j - 1, w)],
-            u  = pixels[mod(i - 1, h)*w + j],
-            ur = pixels[mod(i - 1, h)*w + mod(j + 1, w)],
-            l  = pixels[i*w + mod(j - 1, w)],
-            r  = pixels[i*w + mod(j + 1, w)],
-            dl = pixels[mod(i + 1, h)*w + mod(j - 1, w)],
-            d  = pixels[mod(i + 1, h)*w + j],
-            dr = pixels[mod(i + 1, h)*w + mod(j + 1, w)];
-
-      energies[i * w + j] = pdist(c, ul) + pdist(c,  u) +
-                            pdist(c, ur) + pdist(c,  l) +
-                            pdist(c,  r) + pdist(c, dl) +
-                            pdist(c,  d) + pdist(c, dr);
-    }
-  }
-  return emap;
-}
-
-
 grid_t *compute_energies_omp_unroll_inner(grid_t *img_in) {
 
   int h = img_in->h;
@@ -212,6 +181,7 @@ int *compute_global_minseam(grid_t *emap) {
     }
   }
   else
+    // sequential argmin
     for (int i = 0; i < w; i++)
       if (last_row[i] < min)
         min = last_row[argmin = i];
@@ -282,9 +252,3 @@ grid_t *carve_n_seams(grid_t *img, int n) {
     img = carve_one_seam(img);
   return img;
 }
-
-
-
-
-
-

@@ -1,5 +1,4 @@
 #pragma once
-// #include <cstring>
 #include <stdint.h>
 
 
@@ -75,4 +74,3 @@ void print_grid(grid_t *g) {
   }
   printf("]\n");
 }
-

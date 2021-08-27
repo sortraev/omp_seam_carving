@@ -13,7 +13,7 @@ num_seams=1
 compile: $(main)
 
 $(main): src/main.c $(srcs)
-	g++ -fopenmp -Wall -pedantic -O3 -o $@ $<
+	gcc -fopenmp -Wall -pedantic -O3 -o $@ $<
 
 %-in.dat: %.png $(img2bin)
 	$(img2bin) $< $@
