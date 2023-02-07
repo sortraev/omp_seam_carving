@@ -10,7 +10,10 @@ num_seams=1
 
 .PHONY: $(main)
 
+src/testing: src/testing.c $(srcs)
+	gcc -fopenmp -Wall -pedantic -O3 -o $@ $<
 compile: $(main)
+
 
 $(main): src/main.c $(srcs)
 	gcc -fopenmp -Wall -pedantic -O3 -o $@ $<

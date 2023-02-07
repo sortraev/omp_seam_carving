@@ -1,5 +1,6 @@
 #include <fstream>
 #include "Grid.cpp"
+#include <stdlib.h>
 
 struct Exception : public std::exception {
   protected:
@@ -25,9 +26,24 @@ class Image : public Grid<Pixel> {
     // a constructor because C++ requires that base constructor is called first.
     static Image from_file(std::string in_filename);
 
+    static Image random_image(int h, int w);
+
     // store image in file.
     void to_file(std::string out_filename);
 };
+
+
+Image Image::random_image(int h, int w) {
+  Image out(h, w);
+  Pixel *pixels = out.getCells();
+
+  for (int i = 0; i < h; i++) {
+    for (int j = 0; j < w; j++) {
+      pixels[i * w + j] = (Pixel) rand();
+    }
+  }
+  return out;
+}
 
 
 Image Image::from_file(std::string in_filename) {
@@ -69,6 +85,9 @@ Image Image::from_file(std::string in_filename) {
 }
 
 void Image::to_file(std::string out_filename) {
+
+  if (out_filename.empty()) 
+    return;
 
   std::fstream f(out_filename, std::ios::out | std::ios::binary);
 

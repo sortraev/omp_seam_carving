@@ -3,6 +3,8 @@
 
 #include "seam_carving.c"
 
+#define NUM_THREADS 8
+
 int main(int argc, char **argv) {
 
   if (argc != 4) {

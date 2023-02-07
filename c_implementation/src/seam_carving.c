@@ -6,7 +6,10 @@
 #include "image.c"
 
 #define ENERGY_MAX INT32_MAX
+
+#ifndef NUM_THREADS
 #define NUM_THREADS    8
+#endif
 
 typedef grid_t energymap;
 
@@ -127,9 +130,6 @@ energy *compute_local_minseams(energymap *emap) {
 
 
 
-
-
-
 int *compute_global_minseam(energymap *emap) {
 
   /* 
@@ -155,7 +155,7 @@ int *compute_global_minseam(energymap *emap) {
   int    argmin    = 0;
 
   // compute bottom-row endpoint of global minseam (the argmin mentioned above).
-#define PAR_ARGMIN_IMAGE_WIDTH_THRESHOLD 2048
+#define PAR_ARGMIN_IMAGE_WIDTH_THRESHOLD 28 //2048
   if (w >= PAR_ARGMIN_IMAGE_WIDTH_THRESHOLD) {
     static energy mins[NUM_THREADS];
     static int    argmins[NUM_THREADS];
@@ -168,6 +168,16 @@ int *compute_global_minseam(energymap *emap) {
       for (int i = 0; i < w; i++)
         if (last_row[i] < my_min)
           my_min = last_row[my_argmin = i];
+      // #pragma omp for
+      // for (int i = 0; i < w; i++) {
+      //   energy new = last_row[i];
+      //   int flag   = new < my_min;
+      //   my_min    = flag * new + !flag * my_min;
+      //   my_argmin = flag * i + !flag * my_argmin;
+      //   // my_min = flag *
+      //   // if (last_row[i] < my_min)
+      //   //   my_min = last_row[my_argmin = i];
+      // }
 
       mins[omp_get_thread_num()]    = my_min;
       argmins[omp_get_thread_num()] = my_argmin;
@@ -206,7 +216,7 @@ int *compute_global_minseam(energymap *emap) {
 
 image *carve_one_seam(image *img_in) {
 
-  image *emap  = compute_energies_omp_unroll_inner(img_in);
+  image *emap   = compute_energies_omp_unroll_inner(img_in);
   int *gseam_is = compute_global_minseam(emap);
   free_grid(emap);
 

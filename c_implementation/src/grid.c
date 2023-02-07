@@ -10,9 +10,17 @@ typedef struct {
 
 grid_t *new_grid(int h, int w) {
   grid_t *out = (grid_t*) malloc(sizeof(grid_t));
+  if (!out)
+    return NULL;
+
+  out->cells = (uint32_t*) malloc(h * w * sizeof(uint32_t));
+  if (!out->cells) {
+    free(out);
+    return NULL;
+  }
+
   out->h = h;
   out->w = w;
-  out->cells = (uint32_t*) malloc(h * w * sizeof(uint32_t));
   return out;
 }
 
